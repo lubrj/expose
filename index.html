@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chats Navigator</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f0f0f0; }
+    h1 { font-size: 24px; }
+    ul { list-style: none; padding-left: 0; }
+    li { margin: 6px 0; }
+    a { color: #0077cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .folder { font-weight: bold; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Select a Chat Folder</h1>
+  <ul id="folders"></ul>
+  <div id="files"></div>
+
+  <script>
+    const username = "lubrj";
+    const repo = "expose";
+    const branch = "main";
+    const chatsPath = "chats";
+
+    async function fetchDir(path) {
+      const url = `https://api.github.com/repos/${username}/${repo}/contents/${path}?ref=${branch}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      return await res.json();
+    }
+
+    async function listFolders() {
+      const data = await fetchDir(chatsPath);
+      const foldersEl = document.getElementById("folders");
+
+      data.filter(item => item.type === "dir").forEach(folder => {
+        const li = document.createElement("li");
+        const link = document.createElement("a");
+        link.textContent = folder.name;
+        link.href = "#";
+        link.onclick = () => {
+          listFiles(folder.name);
+          return false;
+        };
+        li.appendChild(link);
+        foldersEl.appendChild(li);
+      });
+    }
+
+    async function listFiles(folderName) {
+      const fileList = await fetchDir(`${chatsPath}/${folderName}`);
+      const filesEl = document.getElementById("files");
+      filesEl.innerHTML = `<h2 class="folder">📂 ${folderName}</h2><ul></ul>`;
+      const ul = filesEl.querySelector("ul");
+
+      fileList
+        .filter(file => file.type === "file" && file.name.endsWith(".html"))
+        .forEach(file => {
+          const li = document.createElement("li");
+          const link = document.createElement("a");
+          link.href = `/${repo}/${chatsPath}/${folderName}/${file.name}`;
+          link.textContent = file.name;
+          li.appendChild(link);
+          ul.appendChild(li);
+        });
+    }
+
+    listFolders();
+  </script>
+</body>
+</html>
