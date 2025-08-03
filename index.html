@@ -1,97 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <title>Chat Explorer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat-Browser</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { 'bg-main': '#231f2b', 'text-main': '#919ed8' },
+          fontFamily: { orbitron: ['Orbitron', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <style>
+    html,
+    body {
+      height: 100%;
+    }
+
+    summary::marker {
+      content: '';
+    }
+
+    #browser::-webkit-scrollbar {
+      width: 0;
+      background: transparent;
+    }
+
+    #browser {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+  </style>
 </head>
-<body class="bg-black text-red-500 p-4 sm:p-6">
-  <div class="max-w-4xl mx-auto">
-    <h1 class="text-2xl sm:text-3xl font-bold mb-4">📁 Chats</h1>
 
-    <input id="search" type="text" placeholder="Search (e.g., user/chat)" class="w-full p-2 mb-4 rounded bg-gray-800 text-red-300 placeholder-red-400">
+<body class="bg-bg-main text-text-main font-orbitron grid grid-rows-[auto_1fr] min-h-screen">
+  <header class="grid grid-cols-5 items-center border-b border-text-main p-4">
+    <div></div>
+    <div class="col-span-3 text-center text-xl font-bold">Chat-Browser</div>
+    <div></div>
+  </header>
 
-    <div id="results" class="mb-8"></div>
-
-    <ul id="folderList" class="space-y-4"></ul>
+  <div class="fixed top-4 left-4 bg-black/40 rounded-xl p-3 flex flex-col gap-4 text-text-main shadow-lg z-10">
+    <a href="https://github.com/lubrj" target="_blank" title="GitHub" class="hover:text-white transition">
+      <i data-lucide="github" class="w-10 h-10"></i>
+    </a>
+    <a href="https://github.com/lubrj/expose" title="Info" class="hover:text-white transition">
+      <i data-lucide="info" class="w-10 h-10"></i>
+    </a>
   </div>
 
+  <main class="overflow-y-auto p-6 pb-32 w-full max-w-4xl mx-auto text-left text-sm" id="browser">
+    Loading repository files...
+  </main>
+
   <script>
-    const username = "lubrj";
-    const repo = "expose";
-    const branch = "main";
-    const basePath = "chats";
-
-    async function fetchDir(path) {
-      const url = `https://api.github.com/repos/${username}/${repo}/contents/${path}?ref=${branch}`;
+    async function fetchRepo() {
+      const url = 'https://api.github.com/repos/lubrj/expose/git/trees/main?recursive=1';
       const res = await fetch(url);
-      if (!res.ok) return [];
-      return await res.json();
-    }
+      if (!res.ok) {
+        console.error('Failed to fetch repo:', res.status);
+        return;
+      }
+      const data = await res.json();
+      const allFiles = data.tree;
 
-    async function listAll() {
-      const folders = await fetchDir(basePath);
-      const container = document.getElementById("folderList");
+      const chatsDirs = new Set();
+      let totalChatsSize = 0;
+      let totalFileCount = 0;
 
-      folders.filter(f => f.type === "dir").forEach(async folder => {
-        const files = await fetchDir(`${basePath}/${folder.name}`);
+      for (const item of allFiles) {
+        if (item.type === 'tree' && item.path.startsWith('chats/')) {
+          const parts = item.path.split('/');
+          if (parts.length === 2) chatsDirs.add(item.path);
+        }
+      }
 
-        const wrapper = document.createElement("div");
+      const browser = document.getElementById('browser');
+      const treeContainer = document.createElement('div');
+      treeContainer.classList.add('space-y-6');
 
-        const title = document.createElement("div");
-        title.className = "font-semibold text-red-400 cursor-pointer text-base sm:text-lg";
-        title.textContent = `📂 ${folder.name}`;
+      const summary = document.createElement('div');
+      summary.classList.add('mb-6', 'text-sm', 'space-y-1');
+      treeContainer.appendChild(summary);
 
-        const ul = document.createElement("ul");
-        ul.className = "ml-4 hidden";
+      for (const dir of chatsDirs) {
+        const dirEl = document.createElement('details');
+        dirEl.classList.add('group');
 
-        files.filter(file => file.name.endsWith(".html")).forEach(file => {
-          const li = document.createElement("li");
-          const a = document.createElement("a");
-          a.href = `/${repo}/${basePath}/${folder.name}/${file.name}`;
-          a.textContent = file.name;
-          a.className = "block text-red-300 hover:underline break-words";
+        const dirTitle = document.createElement('summary');
+        dirTitle.classList.add('font-bold', 'text-lg', 'cursor-pointer');
+        dirTitle.textContent = dir.replace('chats/', '');
+        dirEl.appendChild(dirTitle);
+
+        const filesWrapper = document.createElement('div');
+        filesWrapper.classList.add('pl-4');
+
+        const ul = document.createElement('ul');
+        ul.classList.add('ml-4', 'list-disc');
+
+        const filesInDir = allFiles.filter(item =>
+          item.type === 'blob' && item.path.startsWith(dir + '/')
+        );
+
+        let totalSize = 0;
+        for (const file of filesInDir) {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.textContent = file.path.split('/').pop();
+          a.href = `https://lubrj.github.io/expose/${file.path}`;
+          a.target = '_blank';
+          a.classList.add('hover:underline');
           li.appendChild(a);
           ul.appendChild(li);
-        });
+          totalSize += file.size;
+          totalChatsSize += file.size;
+          totalFileCount++;
+        }
 
-        title.onclick = () => {
-          ul.classList.toggle("hidden");
-        };
+        const total = document.createElement('div');
+        total.classList.add('text-sm', 'mt-1');
+        total.textContent = `Total: ${totalSize} bytes`;
 
-        wrapper.appendChild(title);
-        wrapper.appendChild(ul);
-        container.appendChild(wrapper);
-      });
+        filesWrapper.appendChild(ul);
+        filesWrapper.appendChild(total);
+        dirEl.appendChild(filesWrapper);
+        treeContainer.appendChild(dirEl);
+      }
+
+      const totalDirs = chatsDirs.size;
+      summary.innerHTML = `
+        <div>Total Persons: ${totalDirs}</div>
+        <div>Total files: ${totalFileCount}</div>
+        <div>Total size: ${totalChatsSize} bytes</div>
+      `;
+
+      browser.innerHTML = '';
+      browser.appendChild(treeContainer);
     }
 
-    document.getElementById("search").addEventListener("input", async (e) => {
-      const query = e.target.value.toLowerCase().trim();
-      const results = document.getElementById("results");
-      results.innerHTML = "";
-
-      if (!query) return;
-
-      const folders = await fetchDir(basePath);
-
-      for (const folder of folders) {
-        if (folder.type !== "dir") continue;
-        const files = await fetchDir(`${basePath}/${folder.name}`);
-
-        files.filter(f => f.name.toLowerCase().includes(query) && f.name.endsWith(".html"))
-          .forEach(f => {
-            const fullPath = `${folder.name}/${f.name}`;
-            const a = document.createElement("a");
-            a.href = `/${repo}/${basePath}/${fullPath}`;
-            a.textContent = fullPath;
-            a.className = "block text-red-300 hover:underline break-words";
-            results.appendChild(a);
-          });
-      }
+    fetchRepo();
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
     });
-
-    listAll();
   </script>
 </body>
+
 </html>
