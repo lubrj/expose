@@ -1,4 +1,4 @@
-# 💾 Discord Chat Archive - [HERE](https://lubrj.github.io/expose/)
+# [💾 Discord Chat Archive](https://lubrj.github.io/expose/)
 
 ## 📌 What is this?  
 This repository contains a **large collection of gathered Discord chats**.
