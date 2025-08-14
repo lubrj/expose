@@ -1,0 +1,71 @@
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class WinAPI {
+    [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
+    [DllImport("user32.dll")] public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
+}
+"@
+
+$MOUSEEVENTF_LEFTDOWN = 0x02
+$MOUSEEVENTF_LEFTUP = 0x04
+$VK_RBUTTON = 0x02
+$VK_G = 0x47  # G-Taste zum Aktivieren/Deaktivieren
+
+function Get-CrosshairColor {
+    $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+    $centerX = [int]($bounds.Width / 2)
+    $centerY = [int]($bounds.Height / 2)
+
+    $bmp = New-Object Drawing.Bitmap 1,1
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($centerX, $centerY, 0, 0, $bmp.Size)
+    $color = $bmp.GetPixel(0,0)
+    $g.Dispose()
+    $bmp.Dispose()
+
+    return $color
+}
+
+function LeftClick {
+    [WinAPI]::mouse_event($MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+    Start-Sleep -Milliseconds 10
+    [WinAPI]::mouse_event($MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+}
+
+$running = $false
+$lastToggle = $false
+$lastClickTime = Get-Date
+
+Write-Host "n Triggerbot (Fadenkreuz-Fokus) geladen – G = AN/AUS, Rechtsklick = Aktiv" -ForegroundColor Cyan
+
+while ($true) {
+    # Umschalten mit G
+    $gKey = [WinAPI]::GetAsyncKeyState($VK_G)
+    if ($gKey -band 0x8000 -and -not $lastToggle) {
+        $running = -not $running
+        Write-Host "n[$((Get-Date).ToLongTimeString())] Triggerbot: $($running.ToString().ToUpper())" -ForegroundColor Yellow
+        $lastToggle = $true
+    } elseif (-not ($gKey -band 0x8000)) {
+        $lastToggle = $false
+    }
+
+    # Triggerbedingung: Aktiv + Rechte Maustaste gedrückt
+    if ($running -and ([WinAPI]::GetAsyncKeyState($VK_RBUTTON) -lt 0)) {
+        $color = Get-CrosshairColor
+
+        # Farbprüfung: typisches rot (Fadenkreuz trifft Ziel)
+        if ($color.R -gt 150 -and $color.G -lt 80 -and $color.B -lt 80) {
+            $now = Get-Date
+            if (($now - $lastClickTime).TotalMilliseconds -gt 10) {
+                LeftClick
+                $lastClickTime = $now
+            }
+        }
+    }
+
+    Start-Sleep -Milliseconds 0.1
+}

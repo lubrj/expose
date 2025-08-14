@@ -1,0 +1,8 @@
+Preamp: 30 dB
+VSTPlugin: Library plugins\basiQ.dll
+VSTPlugin: Library plugins\basiQ.dll
+VSTPlugin: Library plugins\basiQ.dll
+Copy: L=3.0*L+R R=5.0*L+3.0*R
+VSTPlugin: Library plugins\Wider.dll
+Filter: ON PK Fc 600 Hz Gain 2.8 dB Q 44.4444
+# Made by Frowz
